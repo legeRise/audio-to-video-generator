@@ -97,8 +97,8 @@ def generate_images(image_prompts, folder_name='test_folder'):
     folder_path = tmp_folder(folder_name)
     for index, prompt in enumerate(image_prompts):
         print(index, prompt)
-        generate_image(prompt=prompt, path=f"{folder_path}/{index}.png")
-    return folder_path
+        image_path = generate_image(prompt=prompt, path=f"{folder_path}/{index}.png")
+        yield prompt, image_path
     
 
 

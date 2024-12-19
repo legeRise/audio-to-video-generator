@@ -4,7 +4,7 @@ import io
 from gradio_client import Client, handle_file
 import tempfile
 import os
-from utils import clean_response, get_translation, get_image_prompts, generate_images, generate_video  # Import generate_video
+from utils import clean_response, get_translation, get_image_prompts, generate_images, generate_video
 import constants  
 
 # Initialize the client only once
@@ -123,25 +123,36 @@ if audio_file:
         # Image prompts - generated once translation is available
         if st.session_state.translation:
             st.write("### Image Prompts")
-            result = get_image_prompts(st.session_state.translation)
-            for prompt in result['image_prompts']:
-                st.write(prompt)
 
-            # Generate images for prompts
-            images_folder = generate_images(result['image_prompts'])
+            # Determine whether to use translation or transcription for image generation
+            prompts = []
+            if 'Already in English' in st.session_state.translation:
+                st.info("Audio is Already in English. Using Transcription to generate Image Prompts")
+                prompts = get_image_prompts(st.session_state.transcript)['image_prompts']
+            else:
+                prompts = get_image_prompts(st.session_state.translation)['image_prompts']
 
-            # Generate the video based on the images and translation
-            if images_folder:
-                st.write("### Generating Video...")
-                with st.spinner("Creating video..."):
-                    video_file = generate_video(images_folder, st.session_state.translation)
-                    if video_file:
-                        st.session_state.generated_video = video_file
-                        st.video(video_file)  # Display the video
-                    else:
-                        st.error("Failed to generate the video.")
+            # Display the prompts
+            for i, prompt in enumerate(prompts):
+                st.write(f"**Prompt {i+1}:** {prompt}")
+
+
+            # Generate and display images using the generator
+            for prompt, image_path in generate_images(prompts):
+                st.image(image_path, caption=f"Prompt: {prompt}", use_column_width=True)
+                st.write(f"Generated from: {prompt}")
+
+            st.info("Video Generation Feature Currently Under Development")
+                # # Generate the video based on the images and translation
+                # st.write("### Generating Video...")
+                # with st.spinner("Creating video..."):
+                #     video_file = generate_video(images_folder, st.session_state.translation)
+                #     if video_file:
+                #         st.session_state.generated_video = video_file
+                #         st.video(video_file)  # Display the video
+                #     else:
+                #         st.error("Failed to generate the video.")
 
 else:
     # If no file is uploaded yet
     st.warning("Please upload an audio file to proceed.")
-
