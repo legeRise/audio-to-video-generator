@@ -122,7 +122,6 @@ if audio_file:
 
         # Image prompts - generated once translation is available
         if st.session_state.translation:
-            st.write("### Image Prompts")
 
             # Determine whether to use translation or transcription for image generation
             prompts = []
@@ -132,15 +131,11 @@ if audio_file:
             else:
                 prompts = get_image_prompts(st.session_state.translation)['image_prompts']
 
-            # Display the prompts
-            for i, prompt in enumerate(prompts):
-                st.write(f"**Prompt {i+1}:** {prompt}")
 
-
-            # Generate and display images using the generator
-            for prompt, image_path in generate_images(prompts):
-                st.image(image_path, caption=f"Prompt: {prompt}", use_column_width=True)
-                st.write(f"Generated from: {prompt}")
+            # Show spinner while generating images
+            with st.spinner("Generating images..."):
+                for prompt, image_path in generate_images(prompts):
+                    st.image(image_path, caption=f"{prompt}", use_column_width=True)
 
             st.info("Video Generation Feature Currently Under Development")
                 # # Generate the video based on the images and translation
