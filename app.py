@@ -28,6 +28,10 @@ if 'translation' not in st.session_state:
     st.session_state.translation = None
 if 'generated_video' not in st.session_state:
     st.session_state.generated_video = None
+if 'image_prompts' not in st.session_state:
+    st.session_state.image_prompts = None
+if 'generated_images' not in st.session_state:
+    st.session_state.generated_images = None
 
 # Function to convert the audio to MP3 using the external API
 def convert_to_mp3(audio_file):
@@ -36,7 +40,7 @@ def convert_to_mp3(audio_file):
     else:
         # Send to the external converter API
         url = constants.AUDIO_CONVERTER_ENDPOINT
-        files = {"file": (audio_file.name, audio_file, "audio/mpeg")}
+        files = {"file": (audio_file.name, audio_file, "audio/mp3")}
 
         with st.spinner("Converting audio to MP3... Please wait."):
             response = requests.post(url, files=files)
@@ -45,9 +49,10 @@ def convert_to_mp3(audio_file):
             # If conversion is successful, save and return the MP3 file
             converted_file = io.BytesIO(response.content)
             converted_file.name = "converted.mp3"
+            st.success("✅ File successfully converted to MP3!")
             return converted_file, True  # File was converted
         else:
-            st.error("Conversion failed. Please try another format.")
+            st.error("❌ Conversion failed. Please try another format.")
             return None, None
 
 # Streamlit UI
@@ -60,15 +65,15 @@ st.markdown(
 audio_file = st.file_uploader("🔼 Upload your audio file:", type=constants.SUPPORTED_FORMATS)
 
 if audio_file:
-    # Reset states when a new file is uploaded
+    # Reset states only when a new file is uploaded
     if st.session_state.uploaded_file_name != audio_file.name:
         st.session_state.uploaded_file_name = audio_file.name
         st.session_state.converted_audio, st.session_state.was_converted = convert_to_mp3(audio_file)
         st.session_state.transcript = None
         st.session_state.translation = None
-        st.session_state.generated_video = None  # Reset video generation state
+        st.session_state.image_prompts = None
+        st.session_state.generated_images = None  # Reset image generation state
 
-    # Display uploaded file name
     st.info(f"Uploaded file: **{audio_file.name}**")
 
     if st.session_state.converted_audio:
@@ -77,77 +82,73 @@ if audio_file:
         else:
             st.success("✅ File successfully converted to MP3!")
 
-        # Save the file temporarily if no transcript exists
+        # Transcription logic
         if st.session_state.transcript is None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
                 tmp_file.write(st.session_state.converted_audio.read())
                 tmp_file_path = tmp_file.name
 
-            result = st.session_state.client.predict(
-                param_0=handle_file(tmp_file_path),
-                api_name="/predict"
-            )
-            st.session_state.transcript = clean_response(result)
+            with st.spinner("Transcribing audio... Please wait."):
+                result = st.session_state.client.predict(
+                    param_0=handle_file(tmp_file_path),
+                    api_name="/predict"
+                )
+                st.session_state.transcript = clean_response(result)
+                os.remove(tmp_file_path)
 
-            # Clean up temporary file
-            os.remove(tmp_file_path)
-
-        # Ensure translation is always generated after transcription
+        # Translation logic
         if st.session_state.transcript and st.session_state.translation is None:
-            with st.spinner("Generating translation..."):
+            with st.spinner("Generating translation... Please wait."):
                 st.session_state.translation = get_translation(st.session_state.transcript)
 
-        # Display and allow playback of the MP3 file
         st.audio(st.session_state.converted_audio, format="audio/mp3")
 
-        # Toggle to show or hide the transcript
+        # Toggle transcript visibility
         toggle_transcript = st.checkbox("Show Transcript", value=st.session_state.transcript_visible)
+        st.session_state.transcript_visible = toggle_transcript
 
-        if toggle_transcript:
-            st.session_state.transcript_visible = True
+        if st.session_state.transcript_visible:
             st.write("### Transcription:")
             st.write(st.session_state.transcript)
-        else:
-            st.session_state.transcript_visible = False
 
-        # Toggle to show or hide the translation
+        # Toggle translation visibility
         toggle_translation = st.checkbox("Show Translation", value=st.session_state.translation_visible)
+        st.session_state.translation_visible = toggle_translation
 
-        if toggle_translation:
-            st.session_state.translation_visible = True
+        if st.session_state.translation_visible:
             st.write("### Translation:")
             st.write(st.session_state.translation)
+
+        # Image generation logic
+        if st.session_state.translation and st.session_state.image_prompts is None:
+            with st.spinner("Generating image prompts... Please wait."):
+                if 'Already in English' in st.session_state.translation:
+                    st.info("Audio is Already in English. Using Transcription to generate Image Prompts")
+                    st.session_state.image_prompts = get_image_prompts(st.session_state.transcript)['image_prompts']
+                else:
+                    st.session_state.image_prompts = get_image_prompts(st.session_state.translation)['image_prompts']
+
+
+        # Ensure that generated_images is always a list
+        if 'generated_images' not in st.session_state or st.session_state.generated_images is None:
+            st.session_state.generated_images = []
+
+        # Generate images only if they have not been generated already
+        if st.session_state.image_prompts and not st.session_state.generated_images:
+            with st.spinner("Generating images... Please wait."):
+                for prompt, image_path in generate_images(st.session_state.image_prompts):
+                    # Display each image as soon as it's generated
+                    st.image(image_path, caption=f"{prompt}", use_container_width=True)
+                    # Append the generated image to the session state
+                    st.session_state.generated_images.append((prompt, image_path))
+
+        # Display all previously generated images (including newly generated ones)
         else:
-            st.session_state.translation_visible = False
+            for prompt, image_path in st.session_state.generated_images:
+                # Display each image
+                st.image(image_path, caption=f"{prompt}", use_container_width=True)
 
-        # Image prompts - generated once translation is available
-        if st.session_state.translation:
-
-            # Determine whether to use translation or transcription for image generation
-            prompts = []
-            if 'Already in English' in st.session_state.translation:
-                st.info("Audio is Already in English. Using Transcription to generate Image Prompts")
-                prompts = get_image_prompts(st.session_state.transcript)['image_prompts']
-            else:
-                prompts = get_image_prompts(st.session_state.translation)['image_prompts']
-
-
-            # Show spinner while generating images
-            with st.spinner("Generating images..."):
-                for prompt, image_path in generate_images(prompts):
-                    st.image(image_path, caption=f"{prompt}", use_column_width=True)
-
-            st.info("Video Generation Feature Currently Under Development")
-                # # Generate the video based on the images and translation
-                # st.write("### Generating Video...")
-                # with st.spinner("Creating video..."):
-                #     video_file = generate_video(images_folder, st.session_state.translation)
-                #     if video_file:
-                #         st.session_state.generated_video = video_file
-                #         st.video(video_file)  # Display the video
-                #     else:
-                #         st.error("Failed to generate the video.")
-
+        st.info("Video Generation Feature Currently Under Development")
 else:
-    # If no file is uploaded yet
     st.warning("Please upload an audio file to proceed.")
+
