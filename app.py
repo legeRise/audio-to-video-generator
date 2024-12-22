@@ -7,6 +7,7 @@ import os
 from utils import clean_response, get_translation, get_image_prompts, generate_images, generate_video
 import constants  
 
+
 # Initialize the client only once
 if 'client' not in st.session_state:
     st.session_state.client = Client("habib926653/openai-whisper-large-v3-turbo", hf_token=constants.HF_TOKEN)
@@ -60,6 +61,7 @@ st.markdown(
     "<h1 style='text-align: center;'>AI Video Generator</h1>",
     unsafe_allow_html=True
 )
+st.info("Video Generation Feature Currently Under Development")
 
 # Upload audio file
 audio_file = st.file_uploader("🔼 Upload your audio file:", type=constants.SUPPORTED_FORMATS)
@@ -148,7 +150,6 @@ if audio_file:
                 # Display each image
                 st.image(image_path, caption=f"{prompt}", use_container_width=True)
 
-        st.info("Video Generation Feature Currently Under Development")
 else:
     st.warning("Please upload an audio file to proceed.")
 
