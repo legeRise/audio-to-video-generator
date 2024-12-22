@@ -7,6 +7,7 @@ from gradio_client import Client
 
 
 def clean_response(result):
+    print("\n\nStarted Cleaning Response")
     """A temporary fix to the output of predict which returns output of openai-whisper-large-v3-turbo as string
     but it outputs: AutomaticSpeechRecognitionOutput(text=" sometimes life   <- like this the class name still remains
     in the response, ideally which should have started from "sometimes..." as in the given example  """
@@ -16,31 +17,34 @@ def clean_response(result):
 
     # Extract the text using slicing
     cleaned_result = result[start_pos:end_pos]
-
+    print("Returning Cleaned Result: ", cleaned_result)
     return cleaned_result
 
 
 def get_translation(text: str):
+    print('\n\nTranslating text: ', text, type(text))
     # Input payload
-    params = {"text": text}
+    data = {"text_input": text}
 
     # Headers for authentication
     headers = {"Authorization": f"Bearer {constants.HF_TOKEN}"}
 
     try:
         # Make a GET request
-        response = requests.get(constants.TRANSLATION_ENDPOINT, params=params, headers=headers)
-
+        response = requests.post(constants.TRANSLATION_ENDPOINT, json=data, headers=headers)
         # Process response
         if response.status_code == 200:
             response_data = response.json()
+            print("Returning Translation")
             return response_data.get("output", "No output found.")
         else:
+            print("Some Error Occured During Translation Request")
+            print(response)
             print(f"Error: {response.status_code}, {response.text}")
-            return None
+            return {"error_occured" : response.text}
     except Exception as e:
         print(f"An exception occurred: {e}")
-        return None
+        return {"error_occured" : e}
     
 
 
