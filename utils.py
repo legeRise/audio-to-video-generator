@@ -4,6 +4,14 @@ import constants
 import os
 from PIL import Image
 from gradio_client import Client
+import moviepy.editor as mp
+from moviepy.video.VideoClip import ImageClip
+from moviepy.editor import AudioFileClip
+from structured_output_extractor import StructuredOutputExtractor
+from pydantic import BaseModel, Field
+from typing import List
+import tempfile
+import os
 
 
 def clean_response(result):
@@ -48,7 +56,7 @@ def get_translation(text: str):
     
 
 
-def get_image_prompts(text_input):
+def old_get_image_prompts(text_input):
     headers = {
         "Authorization": f"Bearer {constants.HF_TOKEN}",  # Replace with your token
         "Content-Type": "application/json"  # Optional, ensures JSON payload
@@ -72,6 +80,29 @@ def get_image_prompts(text_input):
     except requests.exceptions.RequestException as e:
         print(f"Error during request: {e}")
         return {"error": str(e)}
+    
+def segments_to_chunks(segments):
+    chunks = []
+    for segment in segments:
+        chunks.append(segment.get("text"))
+    return chunks
+    
+
+def get_image_prompts(text_input : List):
+        # Example Pydantic model (e.g., Movie)
+    class ImagePromptResponseSchema(BaseModel):
+        image_prompts: List[str] = Field(
+            description="List of detailed image prompts, Each Image Prompt Per Chunk"
+        )
+
+    extractor = StructuredOutputExtractor(response_schema=ImagePromptResponseSchema)
+    chunks_count = len(text_input)
+    chunks = "chunk: " + "\nchunk: ".join(text_input)
+    prompt = f"""ROLE: You are a Highly Experienced Image Prompt Sythesizer
+    TASK:  Generate {chunks_count} image prompts, Each per chunk\n\n {chunks}"""
+    result = extractor.extract(prompt)
+    return result.model_dump()   # returns dictionary version pydantic model
+    
     
 
 
@@ -126,11 +157,124 @@ def tmp_folder(folder_name: str) -> str:
     return folder_path
 
 
-def generate_video(image_folder, audio):
-    return os.path.join(os.getcwd(), "test.mp4")
+
+def old_generate_video(audio_file, images, segments):
+    print(f"images: {images}")
+    print(f"segments: {segments}")
+    print(f"audio file: {audio_file.name}")
+    try:
+        # Save the uploaded audio file to a temporary location
+        file_extension = os.path.splitext(audio_file.name)[1]
+        temp_audio_path = tempfile.NamedTemporaryFile(delete=False, suffix=f"{file_extension}")
+        temp_audio_path.write(audio_file.read())
+        temp_audio_path.close()
+
+        # Load the audio file using MoviePy
+        audio = mp.AudioFileClip(temp_audio_path.name)
+        audio_duration = audio.duration
+
+        # Create video clips for each segment using the corresponding image
+        video_clips = []
+        for i, segment in enumerate(segments):
+            start_time = segment["start"]
+            end_time = segment["end"]
+
+            # Ensure the image index is within bounds
+            image_path = images[min(i, len(images) - 1)]
+
+            # Create an ImageClip for the current segment
+            image_clip = ImageClip(image_path, duration=end_time - start_time)
+            image_clip = image_clip.set_start(start_time).set_end(end_time)
+            video_clips.append(image_clip)
+
+        # Concatenate all the image clips to form the video
+        video = mp.concatenate_videoclips(video_clips, method="compose")
+
+        # Add the audio to the video
+        video = video.set_audio(audio)
+
+        # Save the video to a temporary file
+        temp_dir = tempfile.gettempdir()
+        video_path = os.path.join(temp_dir, "generated_video.mp4")
+        video.write_videofile(video_path, fps=24, codec="libx264", audio_codec="aac")
+
+        # Clean up the temporary audio file
+        os.remove(temp_audio_path.name)
+
+        return video_path
+
+    except Exception as e:
+        print(f"Error generating video: {e}")
+        return 
+    
+
+from moviepy.editor import *
+
+def generate_video(audio_file, images, segments):
+    print(f"images: {images}")
+    print(f"segments: {segments}")
+    print(f"audio file: {audio_file.name}")
+    try:
+        # Save the uploaded audio file to a temporary location
+        file_extension = os.path.splitext(audio_file.name)[1]
+        temp_audio_path = tempfile.NamedTemporaryFile(delete=False, suffix=f"{file_extension}")
+        temp_audio_path.write(audio_file.read())
+        temp_audio_path.close()
+
+        # Load the audio file using MoviePy
+        audio = AudioFileClip(temp_audio_path.name)
+        audio_duration = audio.duration
+
+        # Define YouTube-like dimensions (16:9 aspect ratio, e.g., 1920x1080)
+        frame_width = 1920
+        frame_height = 1080
+
+        # Create video clips for each segment using the corresponding image
+        video_clips = []
+        for i, segment in enumerate(segments):
+            start_time = segment["start"]
+            end_time = segment["end"]
+
+            # Ensure the image index is within bounds
+            image_path = images[min(i, len(images) - 1)]
+
+            # Create an ImageClip for the current segment
+            image_clip = ImageClip(image_path, duration=end_time - start_time)
+
+            # Resize and pad the image to fit a 16:9 aspect ratio
+            image_clip = image_clip.resize(height=frame_height).on_color(
+                size=(frame_width, frame_height),
+                color=(0, 0, 0),  # Black background
+                pos="center"      # Center the image
+            )
+
+            # Set the timing of the clip
+            image_clip = image_clip.set_start(start_time).set_end(end_time)
+            video_clips.append(image_clip)
+
+        # Concatenate all the image clips to form the video
+        video = concatenate_videoclips(video_clips, method="compose")
+
+        # Add the audio to the video
+        video = video.set_audio(audio)
+
+        # Save the video to a temporary file
+        temp_dir = tempfile.gettempdir()
+        video_path = os.path.join(temp_dir, "generated_video.mp4")
+        video.write_videofile(video_path, fps=24, codec="libx264", audio_codec="aac")
+
+        # Clean up the temporary audio file
+        os.remove(temp_audio_path.name)
+
+        return video_path
+
+    except Exception as e:
+        print(f"Error generating video: {e}")
+        return
 
 
 # Example usage:
 if __name__ == "__main__":
     result = generate_images(["a guy in jungle", "a waterfall","greenery"])
-    print(result,'is the result')
+
+
