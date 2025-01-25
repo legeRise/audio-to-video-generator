@@ -6,6 +6,7 @@ from utils import get_translation, get_image_prompts, segments_to_chunks, genera
 import constants  
 from groq import Groq
 
+
 client = Groq()
 
 # Generate a unique session ID for each user
@@ -49,8 +50,13 @@ st.info("**Video Generation Feature** - Functional But Can be Buggy")
 
 # Encourage users to like the app
 
-# Upload audio file
-audio_file = st.file_uploader("🔼 Upload your audio file:", type=constants.SUPPORTED_FORMATS)
+audio_option = st.radio("Choose audio input method:", ("Upload Audio File", "Record Audio"), horizontal=True)
+
+if audio_option == "Upload Audio File":
+    # Upload audio file
+    audio_file = st.file_uploader("🔼 Upload your audio file:", type=constants.SUPPORTED_FORMATS)
+else:
+    audio_file = st.audio_input("🔊 Record Audio")
 
 print(audio_file,'is the upload')
 
