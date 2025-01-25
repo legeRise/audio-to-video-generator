@@ -40,15 +40,6 @@ audio_file = st.file_uploader("🔼 Upload your audio file:", type=constants.SUP
 
 print(audio_file,'is the upload')
 
-# if audio_file is not None:
-#     # Check the duration of the uploaded audio file
-#     duration = get_audio_duration(audio_file)
-
-#     # Allow only files up to 5 minutes (300 seconds)
-#     if duration > 300:
-#         st.error("The uploaded audio file exceeds the 5-minute limit. Please upload a shorter file.")
-#     else:
-#         st.success(f"Audio file uploaded successfully! Duration: {duration/60:.2f} minutes")
 
 if audio_file:
     # Reset states only when a new file is uploaded
@@ -69,7 +60,7 @@ if audio_file:
     result = client.audio.transcriptions.create(
         file=(audio_file.name, file_bytes),  # Send the audio file content directly to the API
         model="whisper-large-v3-turbo",  # Model to use for transcription
-        prompt="Specify context or spelling",  # Optional context for better transcription accuracy
+        prompt="Take Note of Overall Context of the Audio",  # Optional context for better transcription accuracy
         response_format="verbose_json",  # Return detailed JSON response
         temperature=0.0,  # Control randomness in the transcription output
     )
@@ -115,35 +106,45 @@ if audio_file:
 
     # Generate images only if they have not been generated already
     if st.session_state.image_prompts and not st.session_state.generated_images:
-        with st.spinner("Generating images... Please wait."):
-            for prompt, image_path in generate_images(st.session_state.image_prompts):
-                # # Display each image as soon as it's generated
-                # st.image(image_path, caption=f"{prompt}", use_container_width=True)
-                # Append the generated image to the session state
-                st.session_state.generated_images.append((prompt, image_path))
-
-    # # Display all previously generated images (including newly generated ones)
-    # else:
-    #     for prompt, image_path in st.session_state.generated_images:
-    #         st.image(image_path, caption=f"{prompt}", use_container_width=True)
+        progress_placeholder = st.empty()
+        progress_bar = st.progress(0)
+        total_images = len(st.session_state.image_prompts)
+        progress_placeholder.text(f"Generating images. Please be patient...")
+        
+        for idx, (prompt, image_path) in enumerate(generate_images(st.session_state.image_prompts)):
+            st.session_state.generated_images.append((prompt, image_path))
+            progress = (idx + 1) / total_images
+            progress_bar.progress(progress)
+            progress_placeholder.text(f"Generated image {idx + 1} of {total_images}: {prompt[:50]}...")
+        
+        progress_placeholder.text("✅ All images generated successfully!")
+        progress_bar.empty()
 
     # Generate video when all images are generated
     if st.session_state.generated_images and st.session_state.audio:
-        if st.button("Generate Video"):
-            with st.spinner("Generating video... Please wait."):
-                # Map images to segments
-                image_paths = [img[1] for img in st.session_state.generated_images]
-                generated_video_path = generate_video(
-                    audio_file=st.session_state.audio, 
-                    images=image_paths, 
-                    segments=st.session_state.segments
-                )
-                st.session_state.generated_video = generated_video_path
-                st.success("Video generated successfully!")
+        with st.spinner("Generating video... Please wait."):
+            # Map images to segments
+            image_paths = [img[1] for img in st.session_state.generated_images]
+            generated_video_path = generate_video(
+                audio_file=st.session_state.audio, 
+                images=image_paths, 
+                segments=st.session_state.segments
+            )
+            st.session_state.generated_video = generated_video_path
+            st.success("Video generated successfully!")
 
     # Display the generated video
     if st.session_state.generated_video:
         st.video(st.session_state.generated_video)
+        
+        # Add a download button for the generated video
+        with open(st.session_state.generated_video, "rb") as file:
+            st.download_button(
+                label="Download Video",
+                data=file,
+                file_name="generated_video.mp4",
+                mime="video/mp4"
+            )
 
 else:
     st.warning("Please upload an audio file to proceed.")
