@@ -52,6 +52,8 @@ if audio_file:
         st.session_state.translation = None
         st.session_state.image_prompts = None
         st.session_state.generated_images = None  # Reset image generation state
+        st.session_state.generated_video = None  # Reset generated video state
+        st.session_state.video_generated = False  # Reset video generated flag
 
     st.info(f"Uploaded file: **{audio_file.name}**")
 
