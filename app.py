@@ -26,6 +26,8 @@ if 'image_prompts' not in st.session_state:
     st.session_state.image_prompts = None
 if 'generated_images' not in st.session_state:
     st.session_state.generated_images = None
+if 'video_generated' not in st.session_state:
+    st.session_state.video_generated = False
 
 
 # Streamlit UI
@@ -121,7 +123,7 @@ if audio_file:
         progress_bar.empty()
 
     # Generate video when all images are generated
-    if st.session_state.generated_images and st.session_state.audio:
+    if st.session_state.generated_images and st.session_state.audio and not st.session_state.video_generated:
         with st.spinner("Generating video... Please wait."):
             # Map images to segments
             image_paths = [img[1] for img in st.session_state.generated_images]
@@ -131,6 +133,7 @@ if audio_file:
                 segments=st.session_state.segments
             )
             st.session_state.generated_video = generated_video_path
+            st.session_state.video_generated = True  # Set the flag to True
             st.success("Video generated successfully!")
 
     # Display the generated video
