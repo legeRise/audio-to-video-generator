@@ -71,8 +71,32 @@ def get_image_prompts(text_input : List):
     extractor = StructuredOutputExtractor(response_schema=ImagePromptResponseSchema)
     chunks_count = len(text_input)
     chunks = "chunk: " + "\nchunk: ".join(text_input)
-    prompt = f"""ROLE: You are a Highly Experienced Image Prompt Sythesizer (try to avoid explicit unethical prompt gracefully as much as possible) 
-    TASK:  Generate {chunks_count} image prompts, Each per chunk\n\n {chunks}"""
+    prompt = f"""ROLE: You are a Highly Experienced Image Prompt Sythesizer 
+
+SYSTEM PROMPT:  
+
+1. **Combine all chunks** to understand the complete context.  
+2. **Identify the theme** and setting of the combined context.  
+3. For each chunk, **generate a simple, context-aware image prompt** that fits the overall picture.  
+   - Keep it clear and vivid, adding small details to enhance the visual.  
+
+
+### Example  
+
+**Chunks**:  
+1. A guy went to the jungle.  
+2. He saw a lion.  
+
+**Combined Context**:  
+"A man ventured into a jungle and encountered a lion."  
+
+**Prompts**:  
+- **Chunk 1**: "A man walking into a dense, green jungle, with tall trees and sunlight filtering through the leaves."  
+- **Chunk 2**: "In a jungle clearing, a lion stands majestically, its golden mane glowing in the soft sunlight as it watches the man silently."  
+
+NOTE: Never write a prompt that can generate NSFW images, or any other explicit content, use safe and appropriate prompts
+
+TASK:  Generate {chunks_count} image prompts, Each per chunk\n\n {chunks}"""
     result = extractor.extract(prompt)
     return result.model_dump()   # returns dictionary version pydantic model
     

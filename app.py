@@ -2,43 +2,35 @@ import streamlit as st
 import os
 import tempfile
 import uuid
+import logging
 from utils import get_translation, get_image_prompts, segments_to_chunks, generate_images, generate_video
 import constants  
 from groq import Groq
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
 
 client = Groq()
 
 # Generate a unique session ID for each user
 if 'session_id' not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
+    logger.info(f"New session created with ID: {st.session_state.session_id}")
 
 session_id = st.session_state.session_id
 
 # Initialize state variables if not already set
-if f'transcript_visible_{session_id}' not in st.session_state:
-    st.session_state[f'transcript_visible_{session_id}'] = False
-if f'translation_visible_{session_id}' not in st.session_state:
-    st.session_state[f'translation_visible_{session_id}'] = False
-if f'uploaded_file_name_{session_id}' not in st.session_state:
-    st.session_state[f'uploaded_file_name_{session_id}'] = None
-if f'audio_{session_id}' not in st.session_state:
-    st.session_state[f'audio_{session_id}'] = None
-if f'was_converted_{session_id}' not in st.session_state:
-    st.session_state[f'was_converted_{session_id}'] = False
-if f'transcript_{session_id}' not in st.session_state:
-    st.session_state[f'transcript_{session_id}'] = None
-if f'translation_{session_id}' not in st.session_state:
-    st.session_state[f'translation_{session_id}'] = None
-if f'generated_video_{session_id}' not in st.session_state:
-    st.session_state[f'generated_video_{session_id}'] = None
-if f'image_prompts_{session_id}' not in st.session_state:
-    st.session_state[f'image_prompts_{session_id}'] = None
-if f'generated_images_{session_id}' not in st.session_state:
-    st.session_state[f'generated_images_{session_id}'] = None
-if f'video_generated_{session_id}' not in st.session_state:
-    st.session_state[f'video_generated_{session_id}'] = False
+state_variables = [
+    'transcript_visible', 'translation_visible', 'uploaded_file_name', 
+    'audio', 'was_converted', 'transcript', 'translation', 
+    'generated_video', 'image_prompts', 'generated_images', 'video_generated'
+]
 
+for var in state_variables:
+    if f'{var}_{session_id}' not in st.session_state:
+        st.session_state[f'{var}_{session_id}'] = None
+        logger.info(f"Initialized state variable: {var}_{session_id}")
 
 # Streamlit UI
 st.markdown(
@@ -49,7 +41,6 @@ st.markdown("<p style='text-align: center;'>Leave a Like if it works for you! �
 st.info("**Video Generation Feature** - Functional But Can be Buggy")
 
 # Encourage users to like the app
-
 audio_option = st.radio("Choose audio input method:", ("Upload Audio File", "Record Audio"), horizontal=True)
 
 if audio_option == "Upload Audio File":
@@ -58,10 +49,11 @@ if audio_option == "Upload Audio File":
 else:
     audio_file = st.audio_input("🔊 Record Audio")
 
-print(audio_file,'is the upload')
-
+logger.debug(f"Audio option selected: {audio_option}")
 
 if audio_file:
+    logger.info(f"Audio file received: {audio_file.name}")
+
     # Reset states only when a new file is uploaded
     if st.session_state[f'uploaded_file_name_{session_id}'] != audio_file.name:
         st.session_state[f'uploaded_file_name_{session_id}'] = audio_file.name
@@ -72,27 +64,33 @@ if audio_file:
         st.session_state[f'generated_images_{session_id}'] = None  # Reset image generation state
         st.session_state[f'generated_video_{session_id}'] = None  # Reset generated video state
         st.session_state[f'video_generated_{session_id}'] = False  # Reset video generated flag
-
-    st.info(f"Uploaded file: **{audio_file.name}**")
+        logger.info("State variables reset due to new audio file upload.")
 
     # Read the uploaded file's bytes and send to Groq API for transcription
     file_bytes = audio_file.read()
+    logger.debug("Audio file bytes read successfully.")
 
     # Create a transcription of the audio file using Groq API
-    result = client.audio.transcriptions.create(
-        file=(audio_file.name, file_bytes),  # Send the audio file content directly to the API
-        model="whisper-large-v3-turbo",  # Model to use for transcription
-        prompt="Take Note of Overall Context of the Audio",  # Optional context for better transcription accuracy
-        response_format="verbose_json",  # Return detailed JSON response
-        temperature=0.0,  # Control randomness in the transcription output
-    )
-    st.session_state[f'transcript_{session_id}'] = result.text
-    st.session_state[f'segments_{session_id}'] = result.segments
+    try:
+        result = client.audio.transcriptions.create(
+            file=(audio_file.name, file_bytes),  # Send the audio file content directly to the API
+            model="whisper-large-v3-turbo",  # Model to use for transcription
+            prompt="Take Note of Overall Context of the Audio",  # Optional context for better transcription accuracy
+            response_format="verbose_json",  # Return detailed JSON response
+            temperature=0.0,  # Control randomness in the transcription output
+        )
+        st.session_state[f'transcript_{session_id}'] = result.text
+        st.session_state[f'segments_{session_id}'] = result.segments
+        logger.info("Transcription created successfully.")
+    except Exception as e:
+        logger.error(f"Error during transcription: {e}")
+        st.error("An error occurred during transcription.")
 
     # Translation logic
     if st.session_state[f'transcript_{session_id}'] and st.session_state[f'translation_{session_id}'] is None:
         with st.spinner("Generating translation... Please wait."):
             st.session_state[f'translation_{session_id}'] = get_translation(st.session_state[f'transcript_{session_id}'])
+            logger.info("Translation generated successfully.")
 
     st.audio(st.session_state[f'audio_{session_id}'], format=f"audio/{audio_file.type}")
 
@@ -120,8 +118,8 @@ if audio_file:
                 st.session_state[f'image_prompts_{session_id}'] = get_image_prompts(segments_to_chunks(st.session_state[f'segments_{session_id}']))['image_prompts']
             else:
                 st.session_state[f'image_prompts_{session_id}'] = get_image_prompts(segments_to_chunks(st.session_state[f'segments_{session_id}']))['image_prompts']
+            logger.info("Image prompts generated successfully.")
 
-    print(st.session_state[f'image_prompts_{session_id}'])
     # Ensure that generated_images is always a list
     if f'generated_images_{session_id}' not in st.session_state or st.session_state[f'generated_images_{session_id}'] is None:
         st.session_state[f'generated_images_{session_id}'] = []
@@ -141,6 +139,7 @@ if audio_file:
         
         progress_placeholder.text("✅ All images generated successfully!")
         progress_bar.empty()
+        logger.info("All images generated successfully.")
 
     # Generate video when all images are generated
     if st.session_state[f'generated_images_{session_id}'] and st.session_state[f'audio_{session_id}'] and not st.session_state[f'video_generated_{session_id}']:
@@ -160,6 +159,7 @@ if audio_file:
             st.session_state[f'generated_video_{session_id}'] = generated_video_path
             st.session_state[f'video_generated_{session_id}'] = True  # Set the flag to True
             st.success("Video generated successfully!")
+            logger.info("Video generated successfully.")
 
     # Display the generated video
     if st.session_state[f'generated_video_{session_id}']:
@@ -176,5 +176,6 @@ if audio_file:
 
 else:
     st.warning("Please upload an audio file to proceed.")
+    logger.warning("No audio file uploaded.")
 
 
