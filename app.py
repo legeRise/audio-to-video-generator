@@ -3,7 +3,7 @@ import os
 import tempfile
 import uuid
 import logging
-from utils import get_translation, get_image_prompts, segments_to_chunks, generate_images, generate_video
+from utils import get_summarization, get_image_prompts, segments_to_chunks, generate_images, generate_video
 import constants  
 from groq import Groq
 
@@ -22,9 +22,10 @@ session_id = st.session_state.session_id
 
 # Initialize state variables if not already set
 state_variables = [
-    'transcript_visible', 'translation_visible', 'uploaded_file_name', 
-    'audio', 'was_converted', 'transcript', 'translation', 
-    'generated_video', 'image_prompts', 'generated_images', 'video_generated'
+    'transcript_visible', 'uploaded_file_name', 
+    'audio', 'was_converted', 'transcript', 
+    'generated_video', 'image_prompts', 'generated_images', 'video_generated',
+    'summary'  # Added summary state variable
 ]
 
 for var in state_variables:
@@ -59,7 +60,6 @@ if audio_file:
         st.session_state[f'uploaded_file_name_{session_id}'] = audio_file.name
         st.session_state[f'audio_{session_id}'] = audio_file
         st.session_state[f'transcript_{session_id}'] = None
-        st.session_state[f'translation_{session_id}'] = None
         st.session_state[f'image_prompts_{session_id}'] = None
         st.session_state[f'generated_images_{session_id}'] = None  # Reset image generation state
         st.session_state[f'generated_video_{session_id}'] = None  # Reset generated video state
@@ -86,12 +86,6 @@ if audio_file:
         logger.error(f"Error during transcription: {e}")
         st.error("An error occurred during transcription.")
 
-    # Translation logic
-    if st.session_state[f'transcript_{session_id}'] and st.session_state[f'translation_{session_id}'] is None:
-        with st.spinner("Generating translation... Please wait."):
-            st.session_state[f'translation_{session_id}'] = get_translation(st.session_state[f'transcript_{session_id}'])
-            logger.info("Translation generated successfully.")
-
     st.audio(st.session_state[f'audio_{session_id}'], format=f"audio/{audio_file.type}")
 
     # Toggle transcript visibility
@@ -102,22 +96,19 @@ if audio_file:
         st.write("### Transcription:")
         st.write(st.session_state[f'transcript_{session_id}'])
 
-    # Toggle translation visibility
-    toggle_translation = st.checkbox("Show Translation", value=st.session_state[f'translation_visible_{session_id}'], key="toggle_translation")
-    st.session_state[f'translation_visible_{session_id}'] = toggle_translation
-
-    if st.session_state[f'translation_visible_{session_id}']:
-        st.write("### Translation:")
-        st.write(st.session_state[f'translation_{session_id}'])
+    # Summarization logic (not displayed on UI)
+    if st.session_state[f'transcript_{session_id}'] and st.session_state[f'summary_{session_id}'] is None:
+        with st.spinner("Generating summary... Please wait."):
+            st.session_state[f'summary_{session_id}'] = get_summarization(st.session_state[f'transcript_{session_id}'])
+            logger.info("Summary generated successfully.")
 
     # Image generation logic
-    if st.session_state[f'translation_{session_id}'] and st.session_state[f'image_prompts_{session_id}'] is None:
+    if st.session_state[f'transcript_{session_id}'] and st.session_state[f'image_prompts_{session_id}'] is None:
         with st.spinner("Generating image prompts... Please wait."):
-            if 'Already in English' in st.session_state[f'translation_{session_id}']:
-                st.info("Audio is Already in English. Using Transcription to generate Image Prompts")
-                st.session_state[f'image_prompts_{session_id}'] = get_image_prompts(segments_to_chunks(st.session_state[f'segments_{session_id}']))['image_prompts']
-            else:
-                st.session_state[f'image_prompts_{session_id}'] = get_image_prompts(segments_to_chunks(st.session_state[f'segments_{session_id}']))['image_prompts']
+            st.session_state[f'image_prompts_{session_id}'] = get_image_prompts(
+                segments_to_chunks(st.session_state[f'segments_{session_id}']),
+                st.session_state[f'summary_{session_id}']
+            )['image_prompts']
             logger.info("Image prompts generated successfully.")
 
     # Ensure that generated_images is always a list

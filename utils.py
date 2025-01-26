@@ -13,23 +13,8 @@ import tempfile
 import os
 
 
-def clean_response(result):
-    print("\n\nStarted Cleaning Response")
-    """A temporary fix to the output of predict which returns output of openai-whisper-large-v3-turbo as string
-    but it outputs: AutomaticSpeechRecognitionOutput(text=" sometimes life   <- like this the class name still remains
-    in the response, ideally which should have started from "sometimes..." as in the given example  """
-    # Use find() to get the position of the start and end of the text
-    start_pos = result.find('text="') + len('text="')  # Start after 'text="'
-    end_pos = result.find('", chunks=None')  # End before '", chunks=None'
-
-    # Extract the text using slicing
-    cleaned_result = result[start_pos:end_pos]
-    print("Returning Cleaned Result: ", cleaned_result)
-    return cleaned_result
-
-
-def get_translation(text: str):
-    print('\n\nTranslating text: ', text, type(text))
+def get_summarization(text: str):
+    print('\n\nSummarizing text: ', text, type(text))
     # Input payload
     data = {"text_input": text}
 
@@ -38,14 +23,14 @@ def get_translation(text: str):
 
     try:
         # Make a GET request
-        response = requests.post(constants.TRANSLATION_ENDPOINT, json=data, headers=headers)
+        response = requests.post(constants.SUMMARIZATION_ENDPOINT, json=data, headers=headers)
         # Process response
         if response.status_code == 200:
             response_data = response.json()
-            print("Returning Translation")
+            print("Returning Summarization")
             return response_data.get("output", "No output found.")
         else:
-            print("Some Error Occured During Translation Request")
+            print("Some Error Occured During Summarization Request")
             print(response)
             print(f"Error: {response.status_code}, {response.text}")
             return {"error_occured" : response.text}
@@ -61,7 +46,8 @@ def segments_to_chunks(segments):
     return chunks
     
 
-def get_image_prompts(text_input : List):
+def get_image_prompts(text_input : List, summary):
+    print(f"summary: {summary}")
         # Example Pydantic model (e.g., Movie)
     class ImagePromptResponseSchema(BaseModel):
         image_prompts: List[str] = Field(
@@ -71,18 +57,19 @@ def get_image_prompts(text_input : List):
     extractor = StructuredOutputExtractor(response_schema=ImagePromptResponseSchema)
     chunks_count = len(text_input)
     chunks = "chunk: " + "\nchunk: ".join(text_input)
-    prompt = f"""ROLE: You are a Highly Experienced Image Prompt Sythesizer 
+    prompt = f"""
+    
+ROLE: You are a Highly Experienced Image Prompt Sythesizer 
 
-SYSTEM PROMPT:  
-
-1. **Combine all chunks** to understand the complete context.  
-2. **Identify the theme** and setting of the combined context.  
-3. For each chunk, **generate a simple, context-aware image prompt** that fits the overall picture.  
-   - Keep it clear and vivid, adding small details to enhance the visual.  
+SYSTEM PROMPT:  Given the Overall Summary and All Chunks of the Text
+1. Use Summary and Combine all chunks to understand the complete context
+3. **Identify the theme** and setting of the complete text
+4. For each chunk, **generate a simple, context-aware image prompt** that fits the overall picture.  
+5. Keep Image Style as Hyper-Realistic (MUST BE FOLLOWED)
 
 
 ### Example  
-
+summary: this text is a story of guy who went to jungle and a lion
 **Chunks**:  
 1. A guy went to the jungle.  
 2. He saw a lion.  
@@ -96,7 +83,7 @@ SYSTEM PROMPT:
 
 NOTE: Never write a prompt that can generate NSFW images, or any other explicit content, use safe and appropriate prompts
 
-TASK:  Generate {chunks_count} image prompts, Each per chunk\n\n {chunks}"""
+TASK:  Here is the summary: {summary}\n\n and \n\n Total of {chunks_count} chunks, Generate an Image Prompt Each per chunk\n\n {chunks}"""
     result = extractor.extract(prompt)
     return result.model_dump()   # returns dictionary version pydantic model
     

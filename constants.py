@@ -4,13 +4,8 @@ import os
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN", None)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-AUDIO_CONVERTER_ENDPOINT="https://audio-converter-api-587c.onrender.com/convert/mp3"
-
-
-TRANSLATION_ENDPOINT="https://habib926653-text-translator-agent-api.hf.space/generate"
-PROMPT_GENERATION_ENDPOINT="https://habib926653-text-translator-agent-api.hf.space/get-image-prompts"
+SUMMARIZATION_ENDPOINT="https://habib926653-text-translator-agent-api.hf.space/generate"
 IMAGE_GENERATION_SPACE_NAME="habib926653/stabilityai-stable-diffusion-3.5-large-turbo"
 
 # Supported formats
