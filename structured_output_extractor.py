@@ -23,7 +23,8 @@ class StructuredOutputExtractor:
         self.response_schema = response_schema
 
         # Initialize language model (provider and API keys come from constants.py)
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile")
+        # self.llm = ChatGroq(model="llama-3.3-70b-versatile")  # token limit 100k tokens
+        self.llm = ChatGroq(model="deepseek-r1-distill-llama-70b")  # currently no limit per day
         
         # Bind the model with structured output capability
         self.structured_llm = self.llm.with_structured_output(response_schema)
