@@ -66,7 +66,7 @@ SYSTEM PROMPT:  Given the Overall Summary and All Chunks of the Text
 3. **Identify the theme** and setting of the complete text
 4. For each chunk read the chunk and its summary, then create a simple, focused Context-aware image prompt based on key visual elements from both
 5. Keep Image Style as 3D (MUST BE FOLLOWED)
-6. Never Go for Hyper-Realistic
+6. Negatives: Hyper-Realistic, Real Life Human
 
 
 ### Example  
