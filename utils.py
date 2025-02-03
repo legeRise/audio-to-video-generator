@@ -67,6 +67,7 @@ SYSTEM PROMPT:  Given the Overall Summary and All Chunks of the Text
 4. For each chunk read the chunk and its summary, then create a simple, focused Context-aware image prompt based on key visual elements from both
 5. Keep Image Style as 3D (MUST BE FOLLOWED)
 6. Negatives: Hyper-Realistic, Real Life Human
+7. Ensure that concsistent theme follows over the whole script 
 
 
 ### Example  
@@ -79,8 +80,8 @@ summary: this text is a story of guy who went to jungle and a lion
 "A man ventured into a jungle and encountered a lion."  
 
 **Prompts**:  
-- **Chunk 1**: "[style: 3D] A man walking into a dense, green jungle, with tall trees and sunlight filtering through the leaves."  
-- **Chunk 2**: "[style: 3D] In a jungle clearing, a lion stands majestically, its golden mane glowing in the soft sunlight as it watches the man silently."  
+- **Chunk 1**: "[style: 3D| theme: dark jungle] A man walking into a dense, green jungle, with tall trees and sunlight filtering through the leaves."  
+- **Chunk 2**: "[style: 3D| theme: dark jungle] In a jungle clearing, a lion stands majestically, its golden mane glowing in the soft sunlight as it watches the man silently."  
 
 NOTE: Never write a prompt that can generate NSFW images, or any other explicit content, use safe and appropriate prompts
 
