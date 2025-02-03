@@ -62,7 +62,7 @@ def get_image_prompts(text_input : List, summary):
 ROLE: You are a Highly Experienced Image Prompt Sythesizer 
 
 SYSTEM PROMPT:  Given the Overall Summary and All Chunks of the Text
-1. Use Summary and Combine all chunks to understand the complete context
+1. Use Summary and Combined context of all chunks because if you read all chunks in a sequence it is the script
 3. **Identify the theme** and setting of the complete text
 4. For each chunk read the chunk and its summary, then create a simple, focused Context-aware image prompt based on key visual elements from both
 5. Keep Image Style as 3D (MUST BE FOLLOWED)
