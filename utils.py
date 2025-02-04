@@ -58,34 +58,40 @@ def get_image_prompts(text_input : List, summary):
     chunks_count = len(text_input)
     chunks = "chunk: " + "\nchunk: ".join(text_input)
     prompt = f"""
-    
-ROLE: You are a Highly Experienced Image Prompt Sythesizer 
+ROLE: You are a Highly Experienced Image Prompt Synthesizer
+SYSTEM PROMPT: Given the Overall Summary and All Chunks of the Text:
+1. Read the summary and the combined context of all chunks (the entire script).
+2. **Identify the central theme and setting** of the complete text.
+3. For each chunk, examine both the chunk and its summary, then create a **focused, context-aware image prompt** based on key visual elements.
+4. **Ensure thematic consistency across all chunks:**  
+   - The environment, mood, and lighting must remain true to the established theme (e.g., a dark, eerie jungle remains consistently dark and mysterious throughout).
+5. **Keep the image style as 3D (this MUST be followed).**
+6. **Negatives:** Do not include hyper-realistic elements or real-life human depictions, and avoid any out-of-context settings (e.g., a park in a jungle story).
+7. **Use mood-specific lighting and color palettes:**  
+   - For example, if the theme is a dark jungle, use deep greens, blacks, misty blues, and dim moonlight.  
+   - Ensure that all visual elements (fog, shadows, expressions) support the horror/suspense atmosphere.
+8. NEVER generate prompts that could lead to NSFW images or any explicit content. Use safe and appropriate descriptions.
 
-SYSTEM PROMPT:  Given the Overall Summary and All Chunks of the Text
-1. Use Summary and Combined context of all chunks because if you read all chunks in a sequence it is the script
-3. **Identify the theme** and setting of the complete text
-4. For each chunk read the chunk and its summary, then create a simple, focused Context-aware image prompt based on key visual elements from both
-5. Keep Image Style as 3D (MUST BE FOLLOWED)
-6. Negatives: Hyper-Realistic, Real Life Human
-7. Ensure that concsistent theme follows over the whole script 
+### Example:
+**Summary:**  
+This text is a story of a man who ventured into a dark jungle and encountered a mysterious lion.
 
+**Chunks:**  
+1. A man enters the dark jungle, mist swirling around him.  
+2. He comes face-to-face with a majestic yet eerie lion.
 
-### Example  
-summary: this text is a story of guy who went to jungle and a lion
-**Chunks**:  
-1. A guy went to the jungle.  
-2. He saw a lion.  
+**Combined Context:**  
+"A man ventures into a dense, eerie jungle and unexpectedly meets a mysterious lion."
 
-**Combined Context**:  
-"A man ventured into a jungle and encountered a lion."  
+**Generated Prompts:**  
+- **Chunk 1:**  
+  "[style: 3D | theme: dark jungle] A lone man steps into a dense, eerie jungle at twilight. Thick mist swirls around his feet as towering, twisted trees loom overhead. Dim, bluish moonlight filters through the foliage, casting long, haunting shadows."
+  
+- **Chunk 2:**  
+  "[style: 3D | theme: dark jungle] In a clearing within the jungle, a majestic lion appears with an unsettling aura. Its eyes glow faintly in the dim light, and the surrounding trees seem to lean in, enhancing the mysterious tension."
 
-**Prompts**:  
-- **Chunk 1**: "[style: 3D| theme: dark jungle] A man walking into a dense, green jungle, with tall trees and sunlight filtering through the leaves."  
-- **Chunk 2**: "[style: 3D| theme: dark jungle] In a jungle clearing, a lion stands majestically, its golden mane glowing in the soft sunlight as it watches the man silently."  
-
-NOTE: Never write a prompt that can generate NSFW images, or any other explicit content, use safe and appropriate prompts
-
-TASK:  Here is the summary: {summary}\n\n and \n\n Total of {chunks_count} chunks, Generate an Image Prompt Each per chunk\n\n {chunks}"""
+TASK: Here is the summary: {summary}\n\n and \n\n Total of {chunks_count} chunks, generate an Image Prompt for each chunk\n\n {chunks}
+"""
     result = extractor.extract(prompt)
     return result.model_dump()   # returns dictionary version pydantic model
     
